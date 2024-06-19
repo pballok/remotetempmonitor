@@ -6,3 +6,7 @@ Sensor values are uploaded to [EasyIOT Cloud](https://easyiot-cloud.com/) for vi
 ## Development
 
 Uses [PlatformIO](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide) for development.
+
+Library dependencies:
+* DHT sensor library by Adafruit
+* Adafruit Unified Sensor by Adafruit

@@ -1,31 +1,48 @@
-/**
- * Blink
- *
- * Turns on an LED on for one second,
- * then off for one second, repeatedly.
- */
 #include "Arduino.h"
+#include "DHT.h"
 
-// Set LED_BUILTIN if it is not defined by Arduino framework
-// #define LED_BUILTIN 13
+#define DHTPIN 5
+#define DHTTYPE DHT22
+
+DHT dht(DHTPIN, DHTTYPE);
+
+unsigned int previous_dht_update_time_ms = 0;
+const unsigned int dht_read_interval_ms = 10000;
+float current_temperature_c = 0.0;
+float current_humidity = 0.0;
 
 void setup()
 {
-  // initialize LED digital pin as an output.
-  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(115200);
+  dht.begin();
 }
 
 void loop()
 {
-  // turn the LED on (HIGH is the voltage level)
-  digitalWrite(LED_BUILTIN, HIGH);
+  unsigned long current_time_ms = millis();
+  if (current_time_ms - previous_dht_update_time_ms >= dht_read_interval_ms) {
+    previous_dht_update_time_ms = current_time_ms;
 
-  // wait for a second
-  delay(1000);
+    float new_temperature_c = dht.readTemperature();
+    if (isnan(new_temperature_c)) {
+      Serial.println("Failed to read temperature from DHT sensor!");
+    }
+    else {
+      current_temperature_c = new_temperature_c;
+      Serial.print("Temperature: ");
+      Serial.print(current_temperature_c);
+      Serial.println(" C");
+    }
 
-  // turn the LED off by making the voltage LOW
-  digitalWrite(LED_BUILTIN, LOW);
-
-   // wait for a second
-  delay(1000);
+    float new_humidity = dht.readHumidity();
+    if (isnan(new_humidity)) {
+      Serial.println("Failed to read humidity from DHT sensor!");
+    }
+    else {
+      current_humidity = new_humidity;
+      Serial.print("Humidity: ");
+      Serial.print(current_humidity);
+      Serial.println(" %");
+    }
+  }
 }

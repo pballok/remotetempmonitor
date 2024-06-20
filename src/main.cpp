@@ -21,9 +21,12 @@ void connect_to_wifi();
 float read_temperature_in_celsius();
 float read_relative_humidity();
 void write_to_thingspeak(float temperature_c, float humidity);
+void led_single_blink();
 
 void setup()
 {
+  pinMode(LED_BUILTIN, OUTPUT);
+
   Serial.begin(115200);
   dht.begin();
 
@@ -90,4 +93,12 @@ void write_to_thingspeak(float temperature_c, float humidity) {
     Serial.println("Failed to write sensor values to ThingSpeak!");
     return;
   }
+
+  led_single_blink();
+}
+
+void led_single_blink() {
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(500);
+  digitalWrite(LED_BUILTIN, HIGH);
 }

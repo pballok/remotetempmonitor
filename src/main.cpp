@@ -1,48 +1,94 @@
 #include "Arduino.h"
+#include "ESP8266WiFi.h"
+
 #include "DHT.h"
+#include "ThingSpeak.h"
 
-#define DHTPIN 5
-#define DHTTYPE DHT22
+// You need to create this header file for yourself, see README
+#include "secrets.h"
 
-DHT dht(DHTPIN, DHTTYPE);
+const uint8_t       DHT_PIN = 5;
+const uint8_t       DHT_TYPE = DHT22;
+const unsigned long DHT_READ_INTERVAL_MS = 20000;
+const unsigned int  FIELD_TEMPERATURE = 1;
+const unsigned int  FIELD_HUMIDITY = 2;
 
-unsigned int previous_dht_update_time_ms = 0;
-const unsigned int dht_read_interval_ms = 10000;
-float current_temperature_c = 0.0;
-float current_humidity = 0.0;
+unsigned int        previous_dht_update_time_ms = 0;
+WiFiClient          wifi_client;
+DHT                 dht(DHT_PIN, DHT_TYPE);
+
+void connect_to_wifi();
+void update_temperature();
+void update_humidity();
+void send_to_thingspeak();
 
 void setup()
 {
   Serial.begin(115200);
   dht.begin();
+
+  delay(5000);  // give time to Serial Monitor to launch
+
+  connect_to_wifi();
+  ThingSpeak.begin(wifi_client);
 }
 
 void loop()
 {
   unsigned long current_time_ms = millis();
-  if (current_time_ms - previous_dht_update_time_ms >= dht_read_interval_ms) {
+  if (previous_dht_update_time_ms == 0 || current_time_ms - previous_dht_update_time_ms >= DHT_READ_INTERVAL_MS) {
     previous_dht_update_time_ms = current_time_ms;
 
-    float new_temperature_c = dht.readTemperature();
-    if (isnan(new_temperature_c)) {
-      Serial.println("Failed to read temperature from DHT sensor!");
-    }
-    else {
-      current_temperature_c = new_temperature_c;
-      Serial.print("Temperature: ");
-      Serial.print(current_temperature_c);
-      Serial.println(" C");
-    }
-
-    float new_humidity = dht.readHumidity();
-    if (isnan(new_humidity)) {
-      Serial.println("Failed to read humidity from DHT sensor!");
-    }
-    else {
-      current_humidity = new_humidity;
-      Serial.print("Humidity: ");
-      Serial.print(current_humidity);
-      Serial.println(" %");
-    }
+    update_temperature();
+    update_humidity();
+    send_to_thingspeak();
   }
+}
+
+void connect_to_wifi() {
+  WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
+  Serial.print("Connecting to wifi \"");
+  Serial.print(WIFI_NAME);
+  Serial.print("\" ");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(1000);
+  }
+
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+}
+
+void update_temperature() {
+  float temperature_c = dht.readTemperature();
+  if (isnan(temperature_c)) {
+    Serial.println("Failed to read temperature from DHT sensor!");
+    return;
+  }
+
+  ThingSpeak.setField(FIELD_TEMPERATURE, temperature_c);
+}
+
+void update_humidity() {
+  float humidity = dht.readHumidity();
+  if (isnan(humidity)) {
+    Serial.println("Failed to read humidity from DHT sensor!");
+    return;
+  }
+
+  ThingSpeak.setField(FIELD_HUMIDITY, humidity);
+}
+
+void send_to_thingspeak() {
+  int write_success = ThingSpeak.writeFields(THINGSPEAK_SENSOR_CHANNEL_ID, THINGSPEAK_WRITE_API_KEY);
+  if (!write_success) {
+    Serial.println("Failed to send data to ThingSpeak!");
+    return;
+  }
+
+  Serial.println("Data sent to ThingSpeak"); 
 }

@@ -10,11 +10,12 @@ Uses [PlatformIO](https://marketplace.visualstudio.com/items?itemName=platformio
 ### Build
 
 To build this project you first need to create a file called `include/secrets.h`. In this file you need to add `#define` statements with your secrets.
-The following secrets must be added. Make sure you add the quotes ("") too:
+The following secrets must be added:
 
 ```
-#define WIFI_NAME "<your wifi name>"
-#define WIFI_PASSWORD "<your wifi password>"
-#define THINGSPEAK_WRITE_API_KEY "<your write API key>"
-#define YHINGSPEAK_SENSOR_CHANNEL_ID "<your channel id>"
+const String wifi_ssid = "<YOUR WIFI SSID>";
+const String wifi_password = "<YOUR WIFI PASSWORD>";
+
+const char thingspeak_write_api_key[] = "<YOUR THINGSPEAK WRITE API KEY>";
+const unsigned long thingspeak_channel_id = YOUR_THINGSPEAK CHANNEL ID;
 ```

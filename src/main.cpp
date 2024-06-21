@@ -12,6 +12,8 @@ const uint8_t       dht_type = DHT22;
 const unsigned long dht_read_interval_ms = 20000;
 const unsigned int  temperature_field_id = 1;
 const unsigned int  humidity_field_id = 2;
+const unsigned int  blink_control_field_id = 3;
+const int           blink_enabled_value = 2;
 
 unsigned int        previous_dht_update_time_ms = 0;
 WiFiClient          wifi_client;
@@ -20,12 +22,14 @@ DHT                 dht(dht_pin, dht_type);
 void connect_to_wifi();
 float read_temperature_in_celsius();
 float read_relative_humidity();
-void write_to_thingspeak(float temperature_c, float humidity);
+void write_to_thingspeak(float temperature_c, float humidity, bool blink_feedback);
+float read_from_thingspeak();
 void led_single_blink();
 
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);  // LED off at start
 
   Serial.begin(115200);
   dht.begin();
@@ -45,7 +49,8 @@ void loop()
     float temperature_c = read_temperature_in_celsius();
     float humidity = read_relative_humidity();
 
-    write_to_thingspeak(temperature_c, humidity);
+    int blink_control = round(read_from_thingspeak());
+    write_to_thingspeak(temperature_c, humidity, blink_control == blink_enabled_value);
   }
 }
 
@@ -85,7 +90,7 @@ float read_relative_humidity() {
   return hum;
 }
 
-void write_to_thingspeak(float temperature_c, float humidity) {
+void write_to_thingspeak(float temperature_c, float humidity, bool blink_feedback) {
   ThingSpeak.setField(temperature_field_id, temperature_c);
   ThingSpeak.setField(humidity_field_id, humidity);
   int write_success = ThingSpeak.writeFields(thingspeak_channel_id, thingspeak_write_api_key);
@@ -94,7 +99,18 @@ void write_to_thingspeak(float temperature_c, float humidity) {
     return;
   }
 
-  led_single_blink();
+  if (blink_feedback) {
+    led_single_blink();
+  }
+}
+
+float read_from_thingspeak() {
+  float blink_control_value = ThingSpeak.readFloatField(thingspeak_channel_id, blink_control_field_id, thingspeak_read_api_key);
+  if (blink_control_value == 0.0) {
+    Serial.println("Failed to read blink control value from ThingSpeak!");
+  }
+
+  return blink_control_value;
 }
 
 void led_single_blink() {

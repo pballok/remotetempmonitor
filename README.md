@@ -17,5 +17,6 @@ const String wifi_ssid = "<YOUR WIFI SSID>";
 const String wifi_password = "<YOUR WIFI PASSWORD>";
 
 const char thingspeak_write_api_key[] = "<YOUR THINGSPEAK WRITE API KEY>";
+const char thingspeak_read_api_key[] = "<YOUR THINGSPEAK READ API KEY>";
 const unsigned long thingspeak_channel_id = YOUR_THINGSPEAK CHANNEL ID;
 ```

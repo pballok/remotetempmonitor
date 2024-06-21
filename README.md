@@ -9,8 +9,8 @@ Uses [PlatformIO](https://marketplace.visualstudio.com/items?itemName=platformio
 
 ### Build
 
-To build this project you first need to create a file called `include/secrets.h`. In this file you need to add `#define` statements with your secrets.
-The following secrets must be added:
+To build this project you first need to create a file called `include/secrets.h`. In this file you need to add `const` values with your secrets.
+This is the template for the `include/secrets.h` file:
 
 ```
 const String wifi_ssid = "<YOUR WIFI SSID>";

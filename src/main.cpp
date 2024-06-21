@@ -7,23 +7,30 @@
 // You need to create this header file for yourself, see README
 #include "secrets.h"
 
-const uint8_t       DHT_PIN = 5;
-const uint8_t       DHT_TYPE = DHT22;
-const unsigned long DHT_READ_INTERVAL_MS = 20000;
-const unsigned int  FIELD_TEMPERATURE = 1;
-const unsigned int  FIELD_HUMIDITY = 2;
+const uint8_t       dht_pin = 5;
+const uint8_t       dht_type = DHT22;
+const unsigned long dht_read_interval_ms = 20000;
+const unsigned int  temperature_field_id = 1;
+const unsigned int  humidity_field_id = 2;
+const unsigned int  blink_control_field_id = 3;
+const int           blink_enabled_value = 2;
 
 unsigned int        previous_dht_update_time_ms = 0;
 WiFiClient          wifi_client;
-DHT                 dht(DHT_PIN, DHT_TYPE);
+DHT                 dht(dht_pin, dht_type);
 
 void connect_to_wifi();
-void update_temperature();
-void update_humidity();
-void send_to_thingspeak();
+float read_temperature_in_celsius();
+float read_relative_humidity();
+void write_to_thingspeak(float temperature_c, float humidity, bool blink_feedback);
+float read_from_thingspeak();
+void led_single_blink();
 
 void setup()
 {
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);  // LED off at start
+
   Serial.begin(115200);
   dht.begin();
 
@@ -36,19 +43,21 @@ void setup()
 void loop()
 {
   unsigned long current_time_ms = millis();
-  if (previous_dht_update_time_ms == 0 || current_time_ms - previous_dht_update_time_ms >= DHT_READ_INTERVAL_MS) {
+  if (previous_dht_update_time_ms == 0 || current_time_ms - previous_dht_update_time_ms >= dht_read_interval_ms) {
     previous_dht_update_time_ms = current_time_ms;
 
-    update_temperature();
-    update_humidity();
-    send_to_thingspeak();
+    float temperature_c = read_temperature_in_celsius();
+    float humidity = read_relative_humidity();
+
+    int blink_control = round(read_from_thingspeak());
+    write_to_thingspeak(temperature_c, humidity, blink_control == blink_enabled_value);
   }
 }
 
 void connect_to_wifi() {
-  WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
+  WiFi.begin(wifi_ssid, wifi_password);
   Serial.print("Connecting to wifi \"");
-  Serial.print(WIFI_NAME);
+  Serial.print(wifi_ssid);
   Serial.print("\" ");
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -63,32 +72,49 @@ void connect_to_wifi() {
   WiFi.persistent(true);
 }
 
-void update_temperature() {
-  float temperature_c = dht.readTemperature();
-  if (isnan(temperature_c)) {
+float read_temperature_in_celsius() {
+  float temp = dht.readTemperature();
+  if (isnan(temp)) {
     Serial.println("Failed to read temperature from DHT sensor!");
-    return;
   }
 
-  ThingSpeak.setField(FIELD_TEMPERATURE, temperature_c);
+  return temp;
 }
 
-void update_humidity() {
-  float humidity = dht.readHumidity();
-  if (isnan(humidity)) {
+float read_relative_humidity() {
+  float hum = dht.readHumidity();
+  if (isnan(hum)) {
     Serial.println("Failed to read humidity from DHT sensor!");
-    return;
   }
 
-  ThingSpeak.setField(FIELD_HUMIDITY, humidity);
+  return hum;
 }
 
-void send_to_thingspeak() {
-  int write_success = ThingSpeak.writeFields(THINGSPEAK_SENSOR_CHANNEL_ID, THINGSPEAK_WRITE_API_KEY);
+void write_to_thingspeak(float temperature_c, float humidity, bool blink_feedback) {
+  ThingSpeak.setField(temperature_field_id, temperature_c);
+  ThingSpeak.setField(humidity_field_id, humidity);
+  int write_success = ThingSpeak.writeFields(thingspeak_channel_id, thingspeak_write_api_key);
   if (!write_success) {
-    Serial.println("Failed to send data to ThingSpeak!");
+    Serial.println("Failed to write sensor values to ThingSpeak!");
     return;
   }
 
-  Serial.println("Data sent to ThingSpeak"); 
+  if (blink_feedback) {
+    led_single_blink();
+  }
+}
+
+float read_from_thingspeak() {
+  float blink_control_value = ThingSpeak.readFloatField(thingspeak_channel_id, blink_control_field_id, thingspeak_read_api_key);
+  if (blink_control_value == 0.0) {
+    Serial.println("Failed to read blink control value from ThingSpeak!");
+  }
+
+  return blink_control_value;
+}
+
+void led_single_blink() {
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(500);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
